@@ -40,7 +40,7 @@ public:
 	ScopedPointer<Slider> OutputGainSlider;
 	ScopedPointer<Slider> KneeWidthSlider;
 	//ScopedPointer<ToggleButton> DigitalAnalogueButton;
-	ScopedPointer<Drawable> drawable1;
+	//ScopedPointer<Drawable> drawable1;
 	ScopedPointer<TextButton> UploadButton;
 
 

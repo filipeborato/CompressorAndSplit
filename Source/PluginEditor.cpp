@@ -113,7 +113,7 @@ CompreezorAudioProcessorEditor::~CompreezorAudioProcessorEditor()
 	OutputGainSlider = nullptr;
 	KneeWidthSlider = nullptr;
 	//DigitalAnalogueButton = nullptr;
-	drawable1 = nullptr;
+	//drawable1 = nullptr;
 	UploadButton = nullptr;
 }
 
