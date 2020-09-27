@@ -10,6 +10,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "API_Set_File_Upload.h"
 
 
 //==============================================================================
@@ -82,8 +83,11 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
 
 	//addAndMakeVisible(DigitalAnalogueButton = new ToggleButton("Digital/Analogue"));
 	//DigitalAnalogueButton->addListener(this);
-	addAndMakeVisible(UploadButton = new TextButton("Input File"));
+	addAndMakeVisible(UploadButton = new TextButton("Upload"));
 	UploadButton->addListener(this);
+
+	addAndMakeVisible(DownloadButton = new TextButton("Donwload"));
+	DownloadButton->addListener(this);
 
 	//drawable1 = Drawable::createFromImageData(BinaryData::brushedMetalSHRUNK_jpg, BinaryData::brushedMetalSHRUNK_jpgSize);
 
@@ -93,7 +97,7 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
 	//[UserPreSize]
 	//[/UserPreSize]
 
-	setSize(880, 300);
+	setSize(880, 310);
 
 
 	//[Constructor] You can add your own custom stuff here..
@@ -115,6 +119,7 @@ CompreezorAudioProcessorEditor::~CompreezorAudioProcessorEditor()
 	//DigitalAnalogueButton = nullptr;
 	//drawable1 = nullptr;
 	UploadButton = nullptr;
+	DownloadButton = nullptr;
 }
 
 //==============================================================================
@@ -220,7 +225,7 @@ void CompreezorAudioProcessorEditor::paint (Graphics& g)
 
 	{
 		int x = 636, y = 172, width = 200, height = 30;
-		String text(TRANS("Upload Split File"));
+		String text(TRANS("Split File"));
 		Colour fillColour = Colour(0xffb9b9b9);
 		//[UserPaintCustomArguments] Customize the painting arguments here..
 		//[/UserPaintCustomArguments]
@@ -243,7 +248,8 @@ void CompreezorAudioProcessorEditor::resized()
 	OutputGainSlider->setBounds(256, 184, 160, 112);
 	KneeWidthSlider->setBounds(464, 184, 160, 112);
 	//DigitalAnalogueButton->setBounds(680, 224, 150, 24);
-	UploadButton->setBounds(656, 215, 160, 60);
+	UploadButton->setBounds(656, 210, 160, 25);
+	DownloadButton->setBounds(656, 255, 160, 25);
 }
 
 void CompreezorAudioProcessorEditor::sliderValueChanged(Slider* sliderThatWasMoved)
@@ -322,9 +328,41 @@ void CompreezorAudioProcessorEditor::buttonClicked(Button* buttonThatWasClicked)
 
 	if (buttonThatWasClicked == UploadButton)
 	{
-		//[UserButtonCode_toggleButton] -- add your button handler code here..
-		//[/UserButtonCode_toggleButton]
-		//processor.DigitalAnalogue = DigitalAnalogueButton.get()->getToggleStateValue;		
+		//URL Url("http://127.0.0.1:5000/upload");
+
+		String host_name = "http://127.0.0.1:5000/";
+		FileChooser chooser("Select audio file for Upload and Split...",
+							{},
+							"*.wav; *.mp3; *.aiff");
+
+		if (chooser.browseForFileToOpen())                                          
+		{
+			File file = chooser.getResult();
+
+			API_Set_File_Upload file_upload(file, host_name);
+			if (file_upload.runThread())
+			{
+				DBG("Finished uploading file " + file.getFileName());
+			}
+			else
+			{
+				DBG("File upload was canceled by user");
+			}
+			
+			//auto* reader = formatManager.createReaderFor(file);                    
+
+			//if (reader != nullptr)
+			//{
+			/*Url.withFileToUpload("audio",
+				file,
+				"application/octet-stream"
+			);	*/	
+			//}			
+		}		
+	}
+	if (buttonThatWasClicked == DownloadButton)
+	{
+			
 	}
 
 	//[UserbuttonClicked_Post]

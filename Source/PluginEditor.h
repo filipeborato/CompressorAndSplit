@@ -42,6 +42,8 @@ public:
 	//ScopedPointer<ToggleButton> DigitalAnalogueButton;
 	//ScopedPointer<Drawable> drawable1;
 	ScopedPointer<TextButton> UploadButton;
+	ScopedPointer<TextButton> DownloadButton;
+	ScopedPointer<URL> Url;
 
 
 private:
