@@ -11,7 +11,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "API_Set_File_Upload.h"
-
+#include "Downloader.h"
 
 //==============================================================================
 CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioProcessor& p)
@@ -86,7 +86,7 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
 	addAndMakeVisible(UploadButton = new TextButton("Upload"));
 	UploadButton->addListener(this);
 
-	addAndMakeVisible(DownloadButton = new TextButton("Donwload"));
+	addAndMakeVisible(DownloadButton = new TextButton("DonwloadToDesktop"));
 	DownloadButton->addListener(this);
 
 	//drawable1 = Drawable::createFromImageData(BinaryData::brushedMetalSHRUNK_jpg, BinaryData::brushedMetalSHRUNK_jpgSize);
@@ -361,8 +361,25 @@ void CompreezorAudioProcessorEditor::buttonClicked(Button* buttonThatWasClicked)
 		}		
 	}
 	if (buttonThatWasClicked == DownloadButton)
-	{
-			
+	{		
+		URL fileUrl("http://127.0.0.1:5000/download");
+
+		ScopedPointer<InputStream> fileStream = fileUrl.createInputStream(false);
+		File localFile(juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("Separate.zip"));
+
+		localFile.deleteFile();
+
+		MemoryBlock mem(2048);
+		fileStream->readIntoMemoryBlock(mem);
+		FileOutputStream out(localFile);
+
+		out.write(mem.getData(), mem.getSize());
+
+		/*URL zipUrl("http://127.0.0.1:5000/download");
+		InputStream* urlStream = zipUrl.createInputStream(false);
+		ZipFile zipFile(urlStream, true);
+		zipFile.uncompressTo(File::getSpecialLocation(File::userDesktopDirectory));*/
+
 	}
 
 	//[UserbuttonClicked_Post]

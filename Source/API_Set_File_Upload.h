@@ -41,8 +41,6 @@ public:
 	}
 	//String getResponseString() { ScopedLock l(responseLock); return response; }
 
-
-
 protected:
 
 	File file_to_upload_;
