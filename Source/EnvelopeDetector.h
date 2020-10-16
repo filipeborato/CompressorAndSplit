@@ -4,6 +4,7 @@
 EnvelopeDetector.h
 Created: 16 Dec 2017 9:49:56pm
 Author:  Toby
+Alteration: Filipe Borato
 
 ==============================================================================
 */
