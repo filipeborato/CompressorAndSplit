@@ -17,6 +17,6 @@ or
 - Copy the files from the souce folder to the source of your new project
 - Build
 
-#This project is a plugin created with Juce Framework
+# This project is a plugin created with Juce Framework
     
 This project has a python server, in the Flask framework, with a hosted neural network. The name of this Back End is Split and it's on my Github
