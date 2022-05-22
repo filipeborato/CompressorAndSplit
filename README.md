@@ -1,4 +1,4 @@
-# CompressorAndSplit
+# CompressorAndSplit - Plugin Boratio - VST3
 
 <h3>Build<h3>
 
@@ -19,4 +19,6 @@ or
 
 # This project is a plugin created with Juce Framework
     
-This project has a python server, in the Flask framework, with a hosted neural network. The name of this Back End is Split and it's on my Github
+This project has a python server, in the Flask framework, with a hosted neural network. The name of this Back End is Split and it's on my Github.
+    
+
