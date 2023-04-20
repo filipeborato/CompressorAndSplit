@@ -1,8 +1,8 @@
 # CompressorAndSplit - Plugin Boratio - VST3
 
+This project is a VST created from the Juce framework, with a DSP algorithm for compressing the audio track and sending the audio tracks to a server that hosts a neural network for separating the sound sources.
+
 ### For Building Follow the List:
-
-
 
 1. Download the latest version of the Juce framework
 2. Open Projucer and go to openFile and choose the CompressorAndSplit.jucer file
