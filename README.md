@@ -20,5 +20,9 @@ This project is a VST created from the Juce framework, with a DSP algorithm for 
 ### This project is a plugin created with Juce Framework
     
 This project has a python server, in the Flask framework, with a hosted neural network. The name of this Back End is Split and it's on my Github.
+
+### The Server
+To use the Splitter is necessary to run this project:
+https://github.com/filipeborato/Split
     
 
