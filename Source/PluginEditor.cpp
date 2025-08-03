@@ -243,21 +243,36 @@ void CompreezorAudioProcessorEditor::buttonClicked (Button* buttonThatWasClicked
     // Handle upload button
     if (buttonThatWasClicked == uploadButton.get())
     {
-        const String hostName = "http://127.0.0.1:5000/";
-        FileChooser chooser ("Select audio file for upload and split…", {}, "*.wav; *.mp3; *.aiff");
-        if (chooser.browseForFileToOpen())
+        fileChooser = std::make_unique<FileChooser> ("Select audio file for upload and split…",
+                                                     File{},
+                                                     "*.wav; *.mp3; *.aiff");
+        
+        auto chooserFlags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles;
+
+        fileChooser->launchAsync (chooserFlags, [this] (const FileChooser& chooser)
         {
             File file = chooser.getResult();
-            API_Set_File_Upload fileUpload (file, hostName);
-            if (fileUpload.runThread())
+
+            if (file != File{})
             {
-                DBG ("Finished uploading file " + file.getFileName());
+                const String hostName = "http://127.0.0.1:5000/";
+                API_Set_File_Upload fileUpload (file, hostName);
+            
+                // launchThread() é uma chamada bloqueante que exibe uma janela de progresso.
+                // Retorna void, então não podemos usá-la diretamente em um if.
+                fileUpload.launchThread();
+
+                // Após a janela da thread ser fechada, verificamos se foi cancelada.
+                if (!fileUpload.wasCancelled())
+                {
+                    DBG ("Finished uploading file " + file.getFileName());
+                }
+                else
+                {
+                    DBG ("File upload was cancelled by user");
+                }
             }
-            else
-            {
-                DBG ("File upload was cancelled by user");
-            }
-        }
+        });
         return;
     }
 

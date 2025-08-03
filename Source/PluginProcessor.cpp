@@ -114,6 +114,7 @@ void CompreezorAudioProcessor::releaseResources()
     // You can use this as an opportunity to free up spare memory
 }
 
+#ifndef JucePlugin_PreferredChannelConfigurations
 bool CompreezorAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
 #if JucePlugin_IsMidiEffect
@@ -132,6 +133,7 @@ bool CompreezorAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
     return true;
 #endif
 }
+#endif
 
 //==============================================================================
 void CompreezorAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
@@ -198,7 +200,7 @@ float CompreezorAudioProcessor::calcCompressorGain (float fDetectorValue, float 
         double x[2];
         double y[2];
         x[0] = fThreshold - fKneeWidth / 2.0f;
-        x[1] = juce::jmin (0.0, fThreshold + fKneeWidth / 2.0f);
+        x[1] = juce::jmin (0.0f, fThreshold + fKneeWidth / 2.0f);
         y[0] = 0.0;
         y[1] = CS;
         CS = static_cast<float> (lagrpol (&x[0], &y[0], 2, fDetectorValue));
@@ -207,4 +209,11 @@ float CompreezorAudioProcessor::calcCompressorGain (float fDetectorValue, float 
     float yG = CS * (fThreshold - fDetectorValue);
     yG = juce::jmin (0.0f, yG);
     return static_cast<float> (pow (10.0, yG / 20.0f));
+}
+
+//==============================================================================
+// This creates new instances of the plugin..
+AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    return new CompreezorAudioProcessor();
 }

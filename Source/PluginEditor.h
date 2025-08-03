@@ -64,6 +64,9 @@ private:
     std::unique_ptr<TextButton> uploadButton;
     std::unique_ptr<TextButton> downloadButton;
 
+    // File chooser
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     // Reference to the processor that created this editor
     CompreezorAudioProcessor& processor;
 
