@@ -22,7 +22,7 @@ public:
 
 		url = url.withFileToUpload("audio", file_to_upload_, "application/octet-stream");
 		URL::OpenStreamProgressCallback * callback = &API_Set_File_Upload::ProgressCallback;
-		InputStream * input = url.createInputStream(true, callback, this);
+		std::unique_ptr<InputStream> input = url.createInputStream(true, callback, this);
 
 		//String result_post = input->readEntireStreamAsString();
 		//DBG("result post: " + result_post);
@@ -39,6 +39,12 @@ public:
 		static_cast<API_Set_File_Upload*>(context)->setProgress(progress_value);
 		return true;
 	}
+
+	bool wasCancelled() const
+	{
+		return currentThreadShouldExit();
+	}
+
 	//String getResponseString() { ScopedLock l(responseLock); return response; }
 
 protected:
