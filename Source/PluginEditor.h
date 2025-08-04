@@ -60,11 +60,16 @@ private:
     std::unique_ptr<ToggleButton> digitalAnalogButton;  // toggles digital/analogue time constants
     std::unique_ptr<ComboBox>     detectModeCombo;     // selects peak/ms/rms detector
 
+    // Labels for the new controls (we use separate Label components to avoid
+    // overlapping the bottom row text with other UI elements)
+    std::unique_ptr<Label> analogueLabel;              // label for analogue/digital toggle
+    std::unique_ptr<Label> detectorLabel;              // label for detector mode selector
+
     // Action buttons
     std::unique_ptr<TextButton> uploadButton;
     std::unique_ptr<TextButton> downloadButton;
 
-    // File chooser
+    // File chooser used for asynchronous upload; persists while the chooser is open
     std::unique_ptr<juce::FileChooser> fileChooser;
 
     // Reference to the processor that created this editor

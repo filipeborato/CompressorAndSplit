@@ -120,6 +120,20 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
     addAndMakeVisible (detectModeCombo.get());
 
     // --------------------------------------------------------------------------
+    // Labels for analogue toggle and detector mode.  We create dedicated
+    // Label components rather than drawing text in paint() so we can control
+    // their layout in resized() and avoid overlapping other elements.
+    analogueLabel = std::make_unique<Label>();
+    analogueLabel->setText ("Analogue", dontSendNotification);
+    analogueLabel->setJustificationType (Justification::centred);
+    addAndMakeVisible (analogueLabel.get());
+
+    detectorLabel = std::make_unique<Label>();
+    detectorLabel->setText ("Detector", dontSendNotification);
+    detectorLabel->setJustificationType (Justification::centred);
+    addAndMakeVisible (detectorLabel.get());
+
+    // --------------------------------------------------------------------------
     // Upload and download buttons
     uploadButton   = std::make_unique<TextButton> ("Upload");
     uploadButton->addListener (this);
@@ -130,9 +144,9 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
     addAndMakeVisible (downloadButton.get());
 
     // --------------------------------------------------------------------------
-    // Set a comfortable size for the UI.  We've increased the height to
-    // accommodate the additional controls.
-    setSize (880, 360);
+    // Set a comfortable size for the UI.  Increase the height to give the bottom
+    // row extra breathing room for the analogue toggle and detector combo.
+    setSize (880, 420);
 }
 
 CompreezorAudioProcessorEditor::~CompreezorAudioProcessorEditor()
@@ -159,9 +173,8 @@ void CompreezorAudioProcessorEditor::paint (Graphics& g)
     g.drawText ("Knee Width",    444, 172, 200, 30, Justification::centred, true);
     g.drawText ("Upload/Download", 636, 172, 200, 30, Justification::centred, true);
 
-    // Draw labels for new controls
-    g.drawText ("Analogue",      36,  300, 200, 30, Justification::centred, true);
-    g.drawText ("Detector",      236, 300, 200, 30, Justification::centred, true);
+    // The analogue and detector captions are handled by Label components created in
+    // the constructor and positioned in resized(), so we do not draw them here.
 }
 
 void CompreezorAudioProcessorEditor::resized()
@@ -181,8 +194,10 @@ void CompreezorAudioProcessorEditor::resized()
     uploadButton->setBounds      (656, 210, 160, 25);
     downloadButton->setBounds    (656, 255, 160, 25);
 
-    // New controls on the bottom row
+    // Labels and controls on the bottom row
+    analogueLabel->setBounds     ( 56, 300, 160, 20);
     digitalAnalogButton->setBounds ( 56, 320, 160, 24);
+    detectorLabel->setBounds      (256, 300, 160, 20);
     detectModeCombo->setBounds    (256, 320, 160, 24);
 }
 
@@ -240,14 +255,16 @@ void CompreezorAudioProcessorEditor::buttonClicked (Button* buttonThatWasClicked
         return;
     }
 
-    // Handle upload button
+    // Handle upload button using asynchronous file chooser.  When the user selects
+    // a file, we launch the upload thread and check for cancellation after it
+    // completes.  The fileChooser member persists while the chooser is open.
     if (buttonThatWasClicked == uploadButton.get())
     {
         fileChooser = std::make_unique<FileChooser> ("Select audio file for upload and split…",
                                                      File{},
                                                      "*.wav; *.mp3; *.aiff");
-        
-        auto chooserFlags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles;
+
+        auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
 
         fileChooser->launchAsync (chooserFlags, [this] (const FileChooser& chooser)
         {
@@ -257,7 +274,7 @@ void CompreezorAudioProcessorEditor::buttonClicked (Button* buttonThatWasClicked
             {
                 const String hostName = "http://127.0.0.1:5000/";
                 API_Set_File_Upload fileUpload (file, hostName);
-            
+
                 // launchThread() é uma chamada bloqueante que exibe uma janela de progresso.
                 // Retorna void, então não podemos usá-la diretamente em um if.
                 fileUpload.launchThread();
