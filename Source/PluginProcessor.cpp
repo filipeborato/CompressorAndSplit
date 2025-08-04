@@ -13,6 +13,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <cmath>
+
 //==============================================================================
 CompreezorAudioProcessor::CompreezorAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -114,7 +116,6 @@ void CompreezorAudioProcessor::releaseResources()
     // You can use this as an opportunity to free up spare memory
 }
 
-#ifndef JucePlugin_PreferredChannelConfigurations
 bool CompreezorAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
 #if JucePlugin_IsMidiEffect
@@ -133,11 +134,11 @@ bool CompreezorAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
     return true;
 #endif
 }
-#endif
 
 //==============================================================================
 void CompreezorAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+    juce::ignoreUnused (midiMessages);
     ScopedNoDenormals noDenormals;
     const int totalNumInputChannels  = getTotalNumInputChannels();
     const int totalNumOutputChannels = getTotalNumOutputChannels();
@@ -146,7 +147,9 @@ void CompreezorAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuff
     for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // Apply compression per channel
+    // Apply compression per channel.  Also compute maximum gain reduction in dB
+    // across all processed samples for display in the UI.
+    float maxReductionDb = 0.0f;
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         float* channelData = buffer.getWritePointer (channel);
@@ -156,12 +159,24 @@ void CompreezorAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuff
             float inSample = channelData[sample] * DetGain;
             // Detect level using the left detector (we only use one detector for simplicity)
             float detectorValue = m_LeftDetector.detect (inSample);
-            // Calculate gain reduction
+            // Calculate gain reduction multiplier
             float fGn = calcCompressorGain (detectorValue, Threshold, Ratio, KneeWidth, false);
+
+            // Compute reduction in dB (positive value).  Avoid log of zero.
+            float reductionDb = 0.0f;
+            if (fGn > 0.000001f)
+                reductionDb = -20.0f * std::log10 (fGn);
+            if (reductionDb > maxReductionDb)
+                maxReductionDb = reductionDb;
+
             // Apply gain reduction and make up gain
             channelData[sample] = fGn * inSample * OutputGain;
         }
     }
+
+    // Store the maximum reduction for the editor to display.  Smooth this value
+    // slightly to avoid instantaneous jumps.
+    GainReduction = 0.9f * GainReduction + 0.1f * maxReductionDb;
 }
 
 //==============================================================================
@@ -192,6 +207,7 @@ void CompreezorAudioProcessor::setStateInformation (const void* data, int sizeIn
 float CompreezorAudioProcessor::calcCompressorGain (float fDetectorValue, float fThreshold,
                                                     float fRatio, float fKneeWidth, bool bLimit)
 {
+    juce::ignoreUnused (bLimit);
     float CS = 1.0f - 1.0f / fRatio;
     // Soft‑knee interpolation
     if (fKneeWidth > 0.0f && fDetectorValue > (fThreshold - fKneeWidth / 2.0f) &&
@@ -200,7 +216,7 @@ float CompreezorAudioProcessor::calcCompressorGain (float fDetectorValue, float 
         double x[2];
         double y[2];
         x[0] = fThreshold - fKneeWidth / 2.0f;
-        x[1] = juce::jmin (0.0f, fThreshold + fKneeWidth / 2.0f);
+        x[1] = juce::jmin (0.0, static_cast<double>(fThreshold + fKneeWidth / 2.0f));
         y[0] = 0.0;
         y[1] = CS;
         CS = static_cast<float> (lagrpol (&x[0], &y[0], 2, fDetectorValue));
@@ -213,7 +229,7 @@ float CompreezorAudioProcessor::calcCompressorGain (float fDetectorValue, float 
 
 //==============================================================================
 // This creates new instances of the plugin..
-AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new CompreezorAudioProcessor();
 }

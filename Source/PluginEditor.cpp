@@ -15,6 +15,95 @@
 #include "API_Set_File_Upload.h"
 #include "Downloader.h"
 
+//==============================================================================
+// Custom look‑and‑feel for drawing vintage‑style rotary knobs
+class CompreezorAudioProcessorEditor::VintageLookAndFeel : public LookAndFeel_V4
+{
+public:
+    void drawRotarySlider (Graphics& g, int x, int y, int width, int height,
+                           float sliderPosProportional, float rotaryStartAngle,
+                           float rotaryEndAngle, Slider& slider) override
+    {
+        auto radius  = (float) jmin (width / 2, height / 2) - 2.0f;
+        auto centreX = (float) x + (float) width  * 0.5f;
+        auto centreY = (float) y + (float) height * 0.5f;
+        auto angle   = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
+
+        // draw knob body with a radial gradient for a vintage look
+        ColourGradient gradient (Colour (0xff333333), centreX, centreY - radius,
+                                 Colour (0xff555555), centreX, centreY + radius, false);
+        g.setGradientFill (gradient);
+        g.fillEllipse (centreX - radius, centreY - radius, radius * 2.0f, radius * 2.0f);
+
+        // draw outline
+        g.setColour (Colour (0xffaaaaaa));
+        g.drawEllipse (centreX - radius, centreY - radius, radius * 2.0f, radius * 2.0f, 1.5f);
+
+        // draw pointer
+        auto pointerLength   = radius * 0.8f;
+        auto pointerThickness = 2.5f;
+        Path p;
+        p.addRectangle (-pointerThickness * 0.5f, -pointerLength, pointerThickness, pointerLength);
+        p.applyTransform (AffineTransform::rotation (angle).translated (centreX, centreY));
+        g.setColour (Colour (0xffdddddd));
+        g.fillPath (p);
+    }
+};
+
+//==============================================================================
+// Simple gain reduction meter.  Polls the processor's GainReduction value and
+// draws a horizontal bar proportional to the reduction (0–24 dB range).
+class CompreezorAudioProcessorEditor::GainReductionMeter : public Component,
+                                                           private Timer
+{
+public:
+    explicit GainReductionMeter (CompreezorAudioProcessor& proc)
+        : processor (proc)
+    {
+        startTimerHz (30); // update ~30 times per second
+    }
+
+    void paint (Graphics& g) override
+    {
+        g.fillAll (Colour (0xff202020));
+
+        // Draw frame
+        g.setColour (Colour (0xff555555));
+        g.drawRect (getLocalBounds().toFloat(), 1.0f);
+
+        // Compute bar width based on level (clamped to 0–24 dB)
+        const float maxDb  = 24.0f;
+        const float fraction = juce::jlimit (0.0f, 1.0f, level / maxDb);
+
+        auto bounds = getLocalBounds().reduced (2);
+        auto barWidth = bounds.getWidth() * fraction;
+
+        // Draw background
+        g.setColour (Colour (0xff333333));
+        g.fillRect (bounds);
+
+        // Draw bar
+        g.setColour (Colour (0xff4caf50)); // green bar
+        g.fillRect (bounds.withWidth ((int) barWidth));
+
+        // Draw dB text
+        g.setColour (Colour (0xffcccccc));
+        g.setFont (14.0f);
+        g.drawText (String (level, 1) + " dB", bounds, Justification::centredRight, false);
+    }
+
+    void timerCallback() override
+    {
+        // Read current gain reduction from the processor and trigger repaint
+        level = processor.GainReduction;
+        repaint();
+    }
+
+private:
+    CompreezorAudioProcessor& processor;
+    float level = 0.0f;
+};
+
 using juce::AlertWindow;
 
 //==============================================================================
@@ -103,6 +192,18 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
     addAndMakeVisible (kneeWidthSlider.get());
 
     // --------------------------------------------------------------------------
+    // Set up custom look‑and‑feel for vintage rotary knobs
+    lookAndFeel = new VintageLookAndFeel();
+    // Assign the custom look to all rotary sliders
+    detGainSlider->setLookAndFeel (lookAndFeel);
+    thresholdSlider->setLookAndFeel (lookAndFeel);
+    attackTimeSlider->setLookAndFeel (lookAndFeel);
+    releaseTimeSlider->setLookAndFeel (lookAndFeel);
+    ratioSlider->setLookAndFeel (lookAndFeel);
+    outputGainSlider->setLookAndFeel (lookAndFeel);
+    kneeWidthSlider->setLookAndFeel (lookAndFeel);
+
+    // --------------------------------------------------------------------------
     // Digital/Analogue toggle button
     digitalAnalogButton = std::make_unique<ToggleButton> ("Analogue TC");
     digitalAnalogButton->setToggleState (p.DigitalAnalogue, dontSendNotification);
@@ -120,6 +221,25 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
     addAndMakeVisible (detectModeCombo.get());
 
     // --------------------------------------------------------------------------
+    // Labels for analogue toggle and detector mode.  We create dedicated
+    // Label components rather than drawing text in paint() so we can control
+    // their layout in resized() and avoid overlapping other elements.
+    analogueLabel = std::make_unique<Label>();
+    analogueLabel->setText ("Analogue", dontSendNotification);
+    analogueLabel->setJustificationType (Justification::centred);
+    addAndMakeVisible (analogueLabel.get());
+
+    detectorLabel = std::make_unique<Label>();
+    detectorLabel->setText ("Detector", dontSendNotification);
+    detectorLabel->setJustificationType (Justification::centred);
+    addAndMakeVisible (detectorLabel.get());
+
+    gainReductionLabel = std::make_unique<Label>();
+    gainReductionLabel->setText ("Gain Reduction", dontSendNotification);
+    gainReductionLabel->setJustificationType (Justification::centred);
+    addAndMakeVisible (gainReductionLabel.get());
+
+    // --------------------------------------------------------------------------
     // Upload and download buttons
     uploadButton   = std::make_unique<TextButton> ("Upload");
     uploadButton->addListener (this);
@@ -130,14 +250,33 @@ CompreezorAudioProcessorEditor::CompreezorAudioProcessorEditor (CompreezorAudioP
     addAndMakeVisible (downloadButton.get());
 
     // --------------------------------------------------------------------------
-    // Set a comfortable size for the UI.  We've increased the height to
-    // accommodate the additional controls.
-    setSize (880, 360);
+    // Create the gain reduction meter component and add it to the editor
+    gainReductionMeter = std::make_unique<GainReductionMeter> (processor);
+    addAndMakeVisible (gainReductionMeter.get());
+
+    // --------------------------------------------------------------------------
+    // Set a comfortable size for the UI.  Increase the height to give the bottom
+    // row extra breathing room for the analogue toggle and detector combo.
+    setSize (880, 420);
 }
 
 CompreezorAudioProcessorEditor::~CompreezorAudioProcessorEditor()
 {
-    // Unique pointers automatically clean up
+    // Reset look‑and‑feel on sliders before deleting our custom look
+    if (lookAndFeel != nullptr)
+    {
+        detGainSlider->setLookAndFeel (nullptr);
+        thresholdSlider->setLookAndFeel (nullptr);
+        attackTimeSlider->setLookAndFeel (nullptr);
+        releaseTimeSlider->setLookAndFeel (nullptr);
+        ratioSlider->setLookAndFeel (nullptr);
+        outputGainSlider->setLookAndFeel (nullptr);
+        kneeWidthSlider->setLookAndFeel (nullptr);
+        delete lookAndFeel;
+        lookAndFeel = nullptr;
+    }
+
+    // Unique pointers automatically clean up other owned objects
 }
 
 //==============================================================================
@@ -159,9 +298,8 @@ void CompreezorAudioProcessorEditor::paint (Graphics& g)
     g.drawText ("Knee Width",    444, 172, 200, 30, Justification::centred, true);
     g.drawText ("Upload/Download", 636, 172, 200, 30, Justification::centred, true);
 
-    // Draw labels for new controls
-    g.drawText ("Analogue",      36,  300, 200, 30, Justification::centred, true);
-    g.drawText ("Detector",      236, 300, 200, 30, Justification::centred, true);
+    // The analogue and detector captions are handled by Label components created in
+    // the constructor and positioned in resized(), so we do not draw them here.
 }
 
 void CompreezorAudioProcessorEditor::resized()
@@ -181,9 +319,16 @@ void CompreezorAudioProcessorEditor::resized()
     uploadButton->setBounds      (656, 210, 160, 25);
     downloadButton->setBounds    (656, 255, 160, 25);
 
-    // New controls on the bottom row
+    // Labels and controls on the bottom row
+    analogueLabel->setBounds     ( 56, 300, 160, 20);
     digitalAnalogButton->setBounds ( 56, 320, 160, 24);
+    detectorLabel->setBounds      (256, 300, 160, 20);
     detectModeCombo->setBounds    (256, 320, 160, 24);
+
+    // Gain reduction meter positioned on the right of the bottom row
+    gainReductionLabel->setBounds (656, 300, 160, 20);
+    if (gainReductionMeter)
+        gainReductionMeter->setBounds (656, 320, 160, 44);
 }
 
 //==============================================================================
@@ -240,14 +385,16 @@ void CompreezorAudioProcessorEditor::buttonClicked (Button* buttonThatWasClicked
         return;
     }
 
-    // Handle upload button
+    // Handle upload button using asynchronous file chooser.  When the user selects
+    // a file, we launch the upload thread and check for cancellation after it
+    // completes.  The fileChooser member persists while the chooser is open.
     if (buttonThatWasClicked == uploadButton.get())
     {
         fileChooser = std::make_unique<FileChooser> ("Select audio file for upload and split…",
                                                      File{},
                                                      "*.wav; *.mp3; *.aiff");
-        
-        auto chooserFlags = FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles;
+
+        auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
 
         fileChooser->launchAsync (chooserFlags, [this] (const FileChooser& chooser)
         {
@@ -257,7 +404,7 @@ void CompreezorAudioProcessorEditor::buttonClicked (Button* buttonThatWasClicked
             {
                 const String hostName = "http://127.0.0.1:5000/";
                 API_Set_File_Upload fileUpload (file, hostName);
-            
+
                 // launchThread() é uma chamada bloqueante que exibe uma janela de progresso.
                 // Retorna void, então não podemos usá-la diretamente em um if.
                 fileUpload.launchThread();
