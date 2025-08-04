@@ -64,13 +64,22 @@ private:
     // overlapping the bottom row text with other UI elements)
     std::unique_ptr<Label> analogueLabel;              // label for analogue/digital toggle
     std::unique_ptr<Label> detectorLabel;              // label for detector mode selector
+    std::unique_ptr<Label> gainReductionLabel;         // label for gain reduction meter
 
     // Action buttons
     std::unique_ptr<TextButton> uploadButton;
     std::unique_ptr<TextButton> downloadButton;
 
     // File chooser used for asynchronous upload; persists while the chooser is open
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    std::unique_ptr<FileChooser> fileChooser;
+
+    // Custom look‑and‑feel object to draw vintage‑style rotary knobs
+    class VintageLookAndFeel;
+    VintageLookAndFeel* lookAndFeel = nullptr;
+
+    // Gain reduction meter component; owned by the editor
+    class GainReductionMeter;
+    std::unique_ptr<GainReductionMeter> gainReductionMeter;
 
     // Reference to the processor that created this editor
     CompreezorAudioProcessor& processor;

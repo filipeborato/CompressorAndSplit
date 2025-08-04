@@ -69,6 +69,11 @@ public:
     CEnvelopeDetector m_LeftDetector;
     CEnvelopeDetector m_RightDetector;
 
+    // Current gain reduction in decibels (positive value).  This is updated
+    // every processBlock call and can be used by the editor to display a
+    // gain reduction meter.
+    float GainReduction = 0.0f;
+
     // Detection mode codes for convenience
     static constexpr UINT DETECT_MODE_PEAK = 0;
     static constexpr UINT DETECT_MODE_MS   = 1;
